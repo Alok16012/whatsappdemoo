@@ -155,14 +155,26 @@ function newChatListHTML() {
   return html;
 }
 
+const PICK_PAGE = 60;
+// Checkbox rows for choosing group members from everyone on WHATSMORE
+function peoplePickerHTML(q, picked, exclude = [], attr = 'data-pick') {
+  const list = findPeople(q, exclude);
+  const shown = list.slice(0, PICK_PAGE);
+  if (!list.length) return `<div class="empty-list small">No one found${q ? ` for “${esc(q)}”` : ''}.</div>`;
+  return shown.map((c) => `<label class="chat-item check-row">${avatarHTML(c, 40)}<div class="ci-body"><div class="ci-name">${esc(c.name)}${c.isContact ? '' : ' <span class="pill">On WHATSMORE</span>'}</div><div class="ci-preview">@${esc(c.username)}</div></div><input type="checkbox" class="check" ${attr}="${c.id}" ${picked.has(c.id) ? 'checked' : ''}></label>`).join('') +
+    (list.length > shown.length ? `<div class="empty-list small">Showing ${shown.length} of ${list.length.toLocaleString()} — search by name or @username to find more.</div>` : '');
+}
+function ngPickedHTML() {
+  const n = ui.ngPick.size;
+  return n ? `<span class="pill">${n.toLocaleString()} selected</span> <span class="muted small">${esc(namesSummary([...ui.ngPick], 4))}</span>` : '<span class="muted small">Select members below — there is no limit on group size</span>';
+}
 function pageNewGroup() {
-  const people = S.contacts.filter((c) => c.isContact && !c.business);
-  const picked = [...ui.ngPick].map((id) => contact(id)).filter(Boolean);
   return pageHead('New group') + `<div class="form-pad">
       <label class="field"><span>Group name</span><input id="ng-name" maxlength="40" placeholder="e.g. College Friends" value="${esc(ui.ngName)}"></label>
-      <div class="picked">${picked.length ? picked.map((c) => `<span class="pill">${esc(c.name)}</span>`).join('') : '<span class="muted small">Select members below</span>'}</div></div>
-    <div class="list-label">Add members</div>
-    <div class="side-scroll">${people.map((c) => `<label class="chat-item check-row">${avatarHTML(c, 40)}<div class="ci-body"><div class="ci-name">${esc(c.name)}</div><div class="ci-preview">@${esc(c.username)}</div></div><input type="checkbox" class="check" data-pick="${c.id}" ${ui.ngPick.has(c.id) ? 'checked' : ''}></label>`).join('')}</div>
+      <div class="picked" id="ng-picked">${ngPickedHTML()}</div></div>
+    <div class="side-tools">${searchBox('ng-search', 'Search name or @username', ui.ngQuery || '')}</div>
+    <div class="list-label">Add members · unlimited</div>
+    <div class="side-scroll" id="ng-list">${peoplePickerHTML(ui.ngQuery, ui.ngPick)}</div>
     <div class="side-foot"><button class="btn primary block" data-act="creategroup">${icon('check', 18)} Create group</button></div>`;
 }
 

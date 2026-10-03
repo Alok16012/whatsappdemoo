@@ -587,6 +587,11 @@ a { color: #027eb5; }
 .call-title { text-align: center; margin-bottom: 14px; opacity: .9; }
 .call-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .tile { background: #1f2c33; border-radius: 14px; aspect-ratio: 4 / 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; position: relative; }
+.tile.more { background: #2a3942; font-size: 14px; }
+.tile.more b { font-size: 30px; font-weight: 400; }
+.join-sim { display: flex; gap: 8px; margin-top: 8px; }
+.join-sim input { width: 110px; border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 10px; background: var(--panel); }
+.pad-x { padding: 4px 28px 8px; }
 .tile-mic { position: absolute; right: 10px; bottom: 10px; opacity: .7; }
 .self-view { position: absolute; right: 20px; bottom: 20px; width: 220px; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 4px 16px rgba(0, 0, 0, .5); }
 .self-view video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
@@ -652,4 +657,5 @@ a { color: #027eb5; }
   .plans { grid-template-columns: 1fr; }
   .modal-backdrop { padding: 8px; }
   .story-text { font-size: 24px; }
+  .toasts { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }

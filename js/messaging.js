@@ -104,7 +104,7 @@ function notify(ch, from, p) {
   toast(`<b>${esc(chatTitle(ch))}</b>${ch.type === 'group' ? ' · ' + esc(firstName(from)) : ''}: ${esc(text).slice(0, 80)}`, () => openChat(ch.id), { html: true, ms: 4500 });
 }
 function simulateVotes(ch, m) {
-  const voters = ch.type === 'group' ? ch.members : [ch.contactId];
+  const voters = ch.type === 'group' ? sample(ch.members, 25) : [ch.contactId];
   voters.forEach((v, i) => {
     if (Math.random() < 0.25) return;
     setTimeout(() => {
@@ -115,7 +115,7 @@ function simulateVotes(ch, m) {
   });
 }
 function simulatePayRequest(ch, m) {
-  const payers = ch.type === 'group' ? ch.members : [ch.contactId];
+  const payers = ch.type === 'group' ? sample(ch.members, 15) : [ch.contactId];
   payers.forEach((p, i) => setTimeout(() => {
     if (m.status !== 'pending') return;
     m.paidBy = [...(m.paidBy || []), p];
@@ -190,7 +190,7 @@ function payModal(ch) {
   modal({
     title: 'Payments',
     body: `<div class="seg">${tabs.map(([k, l]) => `<button class="${k === mode ? 'on' : ''}" data-mode="${k}">${l}</button>`).join('')}</div>
-      ${group ? `<label class="field" id="pm-to-wrap" hidden><span>Send to</span><select id="pm-to">${ch.members.map((id) => `<option value="${id}">${esc(senderName(id))}</option>`).join('')}</select></label>` : ''}
+      ${group ? `<label class="field" id="pm-to-wrap" hidden><span>Send to</span><select id="pm-to">${ch.members.slice(0, 500).map((id) => `<option value="${id}">${esc(senderName(id))}</option>`).join('')}</select></label>` : ''}
       <label class="field"><span id="pm-amt-label">${group ? 'Total bill amount (₹)' : 'Amount (₹)'}</span><input id="pm-amt" type="number" min="1" step="1" inputmode="decimal" placeholder="0" autofocus></label>
       <label class="field"><span>Note</span><input id="pm-note" maxlength="60" placeholder="e.g. Dinner bill"></label>
       <div class="muted small" id="pm-info">${group ? `Split equally between ${n} people (including you)` : ''}</div>
@@ -276,7 +276,7 @@ function eventModal(ch) {
         const title = $('#ev-t', root).value.trim(), when = new Date($('#ev-d', root).value).getTime();
         if (!title || !when) { toast('Add a name and date'); return false; }
         const m = sendMsg(ch, { type: 'event', title, when, place: $('#ev-p', root).value.trim(), going: ['me'] });
-        (ch.type === 'group' ? ch.members : [ch.contactId]).forEach((p, i) => setTimeout(() => { if (Math.random() < 0.7) { m.going.push(p); refreshMsg(ch); } }, 2000 + i * 1500));
+        (ch.type === 'group' ? sample(ch.members, 25) : [ch.contactId]).forEach((p, i) => setTimeout(() => { if (Math.random() < 0.7) { m.going.push(p); refreshMsg(ch); } }, 2000 + i * 1500));
       },
     }],
   });

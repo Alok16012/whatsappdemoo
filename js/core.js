@@ -24,7 +24,7 @@ const PLANS = {
 
 let S;
 const ui = {
-  tab: 'chats', page: null, active: null, filter: 'all', search: '', ncQuery: '', ngName: '', ngPick: new Set(),
+  tab: 'chats', page: null, active: null, filter: 'all', search: '', ncQuery: '', ngName: '', ngQuery: '', ngPick: new Set(), memQuery: '', memLimit: 20,
   replyTo: null, editing: null, chatSearch: null, searchIdx: 0, drawer: null, unlocked: new Set(),
   typing: {}, emojiOpen: false, emojiTab: 'emoji', draft: {}, filesCat: 'all', filesQuery: '',
   rec: null, playing: null, call: null, story: null, blobs: new Set(),
@@ -93,10 +93,19 @@ function fmtText(t, q) {
 }
 
 // ---------- entities
-const contact = (id) => S.contacts.find((c) => c.id === id);
+// Indexed lookup: groups can have thousands of members. Contacts are only ever appended.
+let contactIdx = null, contactIdxLen = -1, contactIdxArr = null;
+function contact(id) {
+  if (contactIdxArr !== S.contacts || contactIdxLen !== S.contacts.length) {
+    contactIdx = new Map(S.contacts.map((c) => [c.id, c]));
+    contactIdxLen = S.contacts.length; contactIdxArr = S.contacts;
+  }
+  return contactIdx.get(id);
+}
+const person = (id) => contact(id) || S.directory.find((u) => u.id === id);
 const chatById = (id) => S.chats.find((c) => c.id === id);
 const chatTitle = (ch) => (ch.type === 'direct' ? contact(ch.contactId)?.name || 'Unknown' : ch.name);
-const senderName = (id) => (id === 'me' ? 'You' : contact(id)?.name || 'Unknown');
+const senderName = (id) => (id === 'me' ? 'You' : person(id)?.name || 'Unknown');
 const firstName = (id) => (id === 'me' ? 'You' : senderName(id).split(' ')[0]);
 const lastMsg = (ch) => ch.messages[ch.messages.length - 1];
 const lastTime = (ch) => lastMsg(ch)?.t || 0;
@@ -105,6 +114,48 @@ const isAdmin = (ch) => ch.type === 'group' && (ch.admins || []).includes('me');
 const directChatFor = (cid) => S.chats.find((c) => c.type === 'direct' && c.contactId === cid);
 const productById = (pid) => Object.values(S.catalog).flat().find((p) => p.id === pid);
 const allUsernames = () => [...S.contacts, ...S.directory].map((u) => u.username);
+
+// ---------- people (groups have no participant limit)
+const sample = (arr, n) => (arr.length <= n ? arr.slice() : arr.slice().sort(() => Math.random() - 0.5).slice(0, n));
+// Everyone discoverable on WHATSMORE: contacts first, then other users by @username
+function findPeople(q, exclude = []) {
+  q = (q || '').trim().toLowerCase().replace(/^@/, '');
+  const skip = new Set(exclude);
+  const people = [...S.contacts.filter((c) => !c.business), ...S.directory.filter((u) => !S.contacts.some((c) => c.id === u.id))]
+    .filter((p) => !skip.has(p.id));
+  const hits = q ? people.filter((p) => p.name.toLowerCase().includes(q) || p.username.includes(q)) : people;
+  return hits.sort((a, b) => (b.isContact ? 1 : 0) - (a.isContact ? 1 : 0) || a.name.localeCompare(b.name));
+}
+// Make sure a directory user has a contact record so they can be a group member
+function ensureContact(id) {
+  if (contact(id)) return contact(id);
+  const u = S.directory.find((x) => x.id === id);
+  if (!u) return null;
+  const c = { ...u, isContact: false, online: Math.random() < 0.4 };
+  S.contacts.push(c);
+  return c;
+}
+function namesSummary(ids, max = 3) {
+  const names = ids.map(firstName);
+  if (names.length <= max) return names.join(', ');
+  return names.slice(0, max).join(', ') + ` and ${(names.length - max).toLocaleString()} others`;
+}
+const FIRST = 'Aarav Aditi Akash Ananya Arjun Divya Farhan Gayatri Harsh Isha Karan Kavya Lakshmi Manoj Meera Mohit Nandini Naveen Neha Pooja Rahul Ravi Riya Rohan Sameer Sana Shreya Sneha Suresh Tanvi Varun Vikram Yash Zoya Imran Fatima Joseph Mary Priyanka Kiran'.split(' ');
+const LAST = 'Sharma Reddy Rao Khan Patel Iyer Naidu Gupta Singh Verma Das Menon Joshi Nair Shah Kapoor Mehta Pillai Chowdhury Varma'.split(' ');
+// Create N new WHATSMORE users (used to simulate people joining via a group invite link)
+function generatePeople(n) {
+  const out = [], taken = new Set(allUsernames());
+  for (let i = 0; i < n; i++) {
+    const f = pick(FIRST), l = pick(LAST);
+    let un;
+    do { un = (f + '.' + l).toLowerCase() + (Math.floor(Math.random() * 9000) + 100); } while (taken.has(un));
+    taken.add(un);
+    const p = { id: 'g_' + uid(), name: f + ' ' + l, username: un, color: pick(COLORS), generated: 1 };
+    S.contacts.push(p);
+    out.push(p.id);
+  }
+  return out;
+}
 
 function avatarHTML(o, size = 49, extra = '') {
   o = o || {};

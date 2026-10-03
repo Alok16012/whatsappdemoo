@@ -418,35 +418,76 @@ function createGroup() {
   const name = ui.ngName.trim();
   if (!name) return toast('Enter a group name');
   if (!ui.ngPick.size) return toast('Select at least one member');
-  const members = [...ui.ngPick], t = Date.now();
+  const members = [...ui.ngPick].filter((id) => ensureContact(id)), t = Date.now();
   const g = {
     id: 'ch_' + uid(), type: 'group', name, emoji: '👥', color: pick(COLORS), members, admins: ['me'], description: '', unread: 0,
     messages: [
       { id: uid(), type: 'system', from: 'system', t, text: 'Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them.' },
       { id: uid(), type: 'system', from: 'system', t: t + 1, text: `You created group "${name}"` },
-      { id: uid(), type: 'system', from: 'system', t: t + 2, text: 'You added ' + members.map(firstName).join(', ') },
+      { id: uid(), type: 'system', from: 'system', t: t + 2, text: 'You added ' + namesSummary(members, 5) },
     ],
   };
   S.chats.push(g);
-  ui.ngName = ''; ui.ngPick.clear(); ui.page = null;
+  ui.ngName = ''; ui.ngQuery = ''; ui.ngPick.clear(); ui.page = null;
   save(); renderSidebar(); openChat(g.id);
   simulateIncoming(g, members[0], 'Hey everyone 👋', 1500);
 }
+// Add members: anyone on WHATSMORE, as many as you like (no participant limit)
+function addMembers(ch, ids, how = 'You added') {
+  const have = new Set(ch.members);
+  ids = ids.filter((id) => !have.has(id) && ensureContact(id));
+  if (!ids.length) return 0;
+  ch.members.push(...ids);
+  ch.messages.push({ id: uid(), type: 'system', from: 'system', t: Date.now(), text: how === 'joined' ? `${namesSummary(ids, 3)} joined using this group's invite link` : 'You added ' + namesSummary(ids, 5) });
+  save(); renderMain(); renderDrawer(); refreshSidebar();
+  return ids.length;
+}
 function addMemberModal(ch) {
-  const people = S.contacts.filter((c) => c.isContact && !c.business && !ch.members.includes(c.id));
-  if (!people.length) return toast('All your contacts are already in this group');
+  const picked = new Set();
+  const list = (root) => { $('#am-list', root).innerHTML = peoplePickerHTML($('#am-q', root).value, picked, ch.members, 'data-am'); };
+  const count = (root) => { $('#am-count', root).textContent = picked.size ? `${picked.size.toLocaleString()} selected` : 'No limit — add as many people as you like'; };
   modal({
     title: 'Add members',
-    body: `<div class="pick-list">${people.map((c) => `<label class="chat-item check-row">${avatarHTML(c, 40)}<div class="ci-body"><div class="ci-name">${esc(c.name)}</div></div><input type="checkbox" class="check" name="am" value="${c.id}"></label>`).join('')}</div>`,
+    body: `<div class="search modal-search">${icon('search', 18)}<input id="am-q" placeholder="Search name or @username" autocomplete="off" autofocus></div>
+      <div class="row-between"><span class="muted small" id="am-count"></span><button class="link-btn" id="am-link">${icon('link', 16)} Invite via link</button></div>
+      <div class="pick-list" id="am-list"></div>`,
     actions: [{ label: 'Cancel' }, {
-      label: 'Add', primary: true, onClick: (root) => {
-        const ids = $$('input[name=am]:checked', root).map((i) => i.value);
-        if (!ids.length) return false;
-        ch.members.push(...ids);
-        ch.messages.push({ id: uid(), type: 'system', from: 'system', t: Date.now(), text: 'You added ' + ids.map(firstName).join(', ') });
-        save(); renderMain(); renderDrawer();
+      label: 'Add', primary: true, onClick: () => {
+        if (!picked.size) { toast('Select at least one person'); return false; }
+        const n = addMembers(ch, [...picked]);
+        toast(`Added ${n.toLocaleString()} member${n === 1 ? '' : 's'}`);
       },
     }],
+    onMount: (root, close) => {
+      list(root); count(root);
+      $('#am-q', root).addEventListener('input', () => list(root));
+      root.addEventListener('change', (e) => { const id = e.target.dataset.am; if (!id) return; e.target.checked ? picked.add(id) : picked.delete(id); count(root); });
+      $('#am-link', root).addEventListener('click', () => { close(); inviteLinkModal(ch); });
+    },
+  });
+}
+function inviteLinkModal(ch) {
+  ch.invite = ch.invite || Math.random().toString(36).slice(2, 12);
+  const link = `https://whatsmore.app/g/${ch.invite}`;
+  save();
+  modal({
+    title: 'Group invite link',
+    body: `<div class="call-link-card">${chatAvatar(ch, 56)}<div class="grow"><div class="ci-name">${esc(ch.name)}</div><div class="qr-link">${link}</div></div></div>
+      <p class="muted small">Anyone with WHATSMORE can follow this link to join. Groups have <b>no participant limit</b> — currently ${(ch.members.length + 1).toLocaleString()} members.</p>
+      <div class="hint-box">${icon('groups', 16)}<div class="grow"><div><b>Demo:</b> simulate people joining via the link</div>
+        <div class="join-sim"><input id="join-n" type="number" min="1" step="1" value="500" aria-label="Number of people"><button class="btn sm primary" id="join-go">Join</button></div></div></div>`,
+    actions: [
+      { label: 'Reset link', onClick: () => { ch.invite = null; save(); toast('Old link no longer works'); setTimeout(() => inviteLinkModal(ch), 0); } },
+      { label: 'Share in chat', onClick: () => { setTimeout(() => chatPicker('Share invite link', (chats) => { chats.forEach((c) => sendMsg(c, { type: 'text', text: `Join "${ch.name}" on WHATSMORE 👥 ${link}` })); toast('Invite link shared'); }), 0); } },
+      { label: 'Copy link', primary: true, onClick: () => { copyText(link); return false; } },
+    ],
+    onMount: (root) => $('#join-go', root).addEventListener('click', () => {
+      const n = Math.floor(+$('#join-n', root).value);
+      if (!(n > 0)) return toast('Enter how many people');
+      const added = addMembers(ch, generatePeople(n), 'joined');
+      toast(`${added.toLocaleString()} people joined · ${(ch.members.length + 1).toLocaleString()} members`);
+      $('.modal-body p', root).innerHTML = `Anyone with WHATSMORE can follow this link to join. Groups have <b>no participant limit</b> — currently ${(ch.members.length + 1).toLocaleString()} members.`;
+    }),
   });
 }
 function memberMenu(ch, id, anchor) {

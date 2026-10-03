@@ -118,6 +118,8 @@ const A = {
   'toggle-readonly'() { const ch = curChat(); ch.readOnly = !ch.readOnly; ch.messages.push({ id: uid(), type: 'system', from: 'system', t: Date.now(), text: ch.readOnly ? 'You changed this group so only admins can send messages' : 'You changed this group so all members can send messages' }); save(); renderMain(); renderDrawer(); },
   member(el, e) { memberMenu(curChat(), el.dataset.id, el); },
   addmember() { addMemberModal(curChat()); },
+  invitelink() { inviteLinkModal(curChat()); },
+  memmore() { ui.memLimit += 100; $('#mem-list').innerHTML = memberListHTML(curChat()); },
   editdesc() { editDescModal(curChat()); },
   block() { const ch = curChat(); toggleBlock(contact(ch.contactId)); },
   report() { const ch = curChat(); reportModal(contact(ch.contactId)); },
@@ -138,6 +140,8 @@ const A = {
 document.addEventListener('click', (e) => {
   const link = e.target.closest('a[href*="whatsmore.app/call/"]');
   if (link) { e.preventDefault(); startCall(null, true, { room: link.href.split('/call/')[1] }); return; }
+  const glink = e.target.closest('a[href*="whatsmore.app/g/"]');
+  if (glink) { e.preventDefault(); const code = glink.href.split('/g/')[1]; const g = S.chats.find((c) => c.invite && c.invite === code); if (g) openChat(g.id); else toast('This invite link was reset or is invalid'); return; }
   const prof = e.target.closest('a[href*="whatsmore.app/u/"]');
   if (prof) { e.preventDefault(); if (!connectFromText(prof.href)) toast('User not found'); return; }
   const el = e.target.closest('[data-act]');
@@ -164,6 +168,8 @@ document.addEventListener('input', (e) => {
     case 'nc-search': ui.ncQuery = t.value; $('#nc-list').innerHTML = newChatListHTML(); break;
     case 'files-search': ui.filesQuery = t.value; $('#files-list').innerHTML = filesListHTML(); break;
     case 'ng-name': ui.ngName = t.value; break;
+    case 'ng-search': ui.ngQuery = t.value; $('#ng-list').innerHTML = peoplePickerHTML(t.value, ui.ngPick); break;
+    case 'mem-search': ui.memQuery = t.value; ui.memLimit = MEM_PAGE; $('#mem-list').innerHTML = memberListHTML(curChat()); break;
     case 'cs-input': ui.chatSearch = t.value; ui.searchIdx = 0; renderMessages({ keep: true }); updateSearchCount(true); break;
     case 'pf-un': { t.value = t.value.toLowerCase().replace(/[^a-z0-9._]/g, ''); const [k, msg] = checkUsername(t.value); const s = $('#un-status'); s.className = 'un-status ' + k; s.textContent = msg; break; }
   }
@@ -171,7 +177,7 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('change', (e) => {
   const t = e.target;
-  if (t.dataset.pick) { t.checked ? ui.ngPick.add(t.dataset.pick) : ui.ngPick.delete(t.dataset.pick); const name = ui.ngName; renderSidebar(); ui.ngName = name; return; }
+  if (t.dataset.pick) { t.checked ? ui.ngPick.add(t.dataset.pick) : ui.ngPick.delete(t.dataset.pick); const p = $('#ng-picked'); if (p) p.innerHTML = ngPickedHTML(); return; }
   if (t.dataset.setting) {
     const path = t.dataset.setting;
     const v = t.type === 'checkbox' ? t.checked : t.value;

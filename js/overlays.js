@@ -25,7 +25,19 @@ function headMenu(anchor) {
 }
 
 // ---------- drawer
-function openDrawer(kind) { ui.drawer = kind; renderDrawer(); }
+function openDrawer(kind) { ui.drawer = kind; ui.memQuery = ''; ui.memLimit = MEM_PAGE; renderDrawer(); }
+const MEM_PAGE = 20;
+// Paginated so groups of any size stay fast
+function memberListHTML(ch) {
+  const q = ui.memQuery.trim().toLowerCase().replace(/^@/, '');
+  const admins = new Set(ch.admins || []);
+  let ids = ['me', ...ch.members].sort((a, b) => (admins.has(b) ? 1 : 0) - (admins.has(a) ? 1 : 0) || (a === 'me' ? -1 : b === 'me' ? 1 : 0));
+  if (q) ids = ids.filter((id) => { const p = id === 'me' ? S.me : contact(id); return p && (p.name.toLowerCase().includes(q) || p.username.includes(q)); });
+  const shown = ids.slice(0, ui.memLimit);
+  return shown.map((id) => { const p = id === 'me' ? S.me : contact(id); return `<div class="info-row member" data-act="member" data-id="${id}">${avatarHTML(p, 40)}<div class="grow"><div>${id === 'me' ? 'You' : esc(p.name)}</div><div class="ci-sub">@${esc(p.username)}</div></div>${admins.has(id) ? '<span class="pill">Admin</span>' : ''}</div>`; }).join('') +
+    (ids.length > shown.length ? `<button class="link-row" data-act="memmore">View more (${(ids.length - shown.length).toLocaleString()} remaining)</button>` : '') +
+    (!ids.length ? '<div class="empty-list small">No members found</div>' : '');
+}
 function renderDrawer() {
   const ch = chatById(ui.active);
   if (!ui.drawer || !ch) { app.classList.remove('drawer-open'); drawer.innerHTML = ''; return; }
@@ -52,7 +64,7 @@ function renderDrawer() {
         <div class="info-sec"><div class="info-label row-between"><span>Catalogue</span><button class="link-btn" data-act="catalog">See all</button></div><div class="mini-cat">${(S.catalog[c.id] || []).map((p) => `<button class="mini-prod" data-act="catalog"><div class="prod-art" style="background:${p.bg}">${p.emoji}</div><span>${money(p.price)}</span></button>`).join('')}</div></div>`;
     }
   } else {
-    html += `<div class="info-sec hero">${chatAvatar(ch, 160)}<h2>${esc(ch.name)}</h2><div class="ci-sub">Group · ${ch.members.length + 1} members${ch.community ? ' · ' + esc(S.communities.find((x) => x.id === ch.community)?.name || '') : ''}</div>
+    html += `<div class="info-sec hero">${chatAvatar(ch, 160)}<h2>${esc(ch.name)}</h2><div class="ci-sub">Group · ${(ch.members.length + 1).toLocaleString()} members${ch.community ? ' · ' + esc(S.communities.find((x) => x.id === ch.community)?.name || '') : ''}</div>
       <div class="info-actions"><button data-act="call-voice">${icon('call')}<span>Audio</span></button><button data-act="call-video">${icon('video')}<span>Video</span></button><button data-act="paymodal">${icon('rupee')}<span>Split</span></button><button data-act="aisummary">${icon('sparkle')}<span>Summary</span></button></div></div>
       <div class="info-sec" ${isAdmin(ch) ? 'data-act="editdesc"' : ''}><div class="info-label">Description</div><div>${esc(ch.description || (isAdmin(ch) ? 'Add group description' : 'No description'))}</div></div>`;
   }
@@ -66,10 +78,12 @@ function renderDrawer() {
     ${row('verify', 'lock', 'Encryption', 'Messages and calls are end-to-end encrypted. Tap to verify.')}
   </div>`;
   if (ch.type === 'group') {
-    const members = ['me', ...ch.members];
-    html += `<div class="info-sec list"><div class="info-label pad-x">${members.length} members</div>
-      ${isAdmin(ch) && !ch.left ? `<div class="info-row" data-act="addmember"><span class="action-ic">${icon('personadd', 20)}</span><div class="grow">Add member</div></div>` : ''}
-      ${members.map((id) => { const p = id === 'me' ? S.me : contact(id); return `<div class="info-row member" data-act="member" data-id="${id}">${avatarHTML(p, 40)}<div class="grow"><div>${id === 'me' ? 'You' : esc(p.name)}</div><div class="ci-sub">@${esc(p.username)}</div></div>${(ch.admins || []).includes(id) ? '<span class="pill">Admin</span>' : ''}</div>`; }).join('')}
+    const total = ch.members.length + 1;
+    html += `<div class="info-sec list"><div class="info-label pad-x row-between"><span>${total.toLocaleString()} members</span><span class="muted small">No limit</span></div>
+      ${isAdmin(ch) && !ch.left ? `<div class="info-row" data-act="addmember"><span class="action-ic">${icon('personadd', 20)}</span><div class="grow">Add members</div></div>
+      <div class="info-row" data-act="invitelink"><span class="action-ic">${icon('link', 20)}</span><div class="grow">Invite to group via link</div></div>` : ''}
+      ${total > 8 ? `<div class="pad-x"><div class="search">${icon('search', 18)}<input id="mem-search" placeholder="Search ${total.toLocaleString()} members" value="${esc(ui.memQuery)}" autocomplete="off"></div></div>` : ''}
+      <div id="mem-list">${memberListHTML(ch)}</div>
     </div>`;
     if (isAdmin(ch)) html += `<div class="info-sec list"><div class="info-label pad-x">Admin controls</div>${row('toggle-readonly', 'megaphone', 'Only admins can send messages', 'Turn the group into an announcement channel', `<input type="checkbox" class="switch" ${ch.readOnly ? 'checked' : ''} tabindex="-1">`)}</div>`;
   }
@@ -211,13 +225,14 @@ function renderCall() {
   if (!el) { el = document.createElement('div'); el.id = 'call'; el.className = 'call'; overlayRoot.appendChild(el); }
   const title = call.room ? 'WHATSMORE Call Room' : chatTitle(call.ch);
   const label = { calling: 'Calling…', ringing: 'Ringing…', waiting: 'Waiting for others to join…', connected: call.start ? fmtDur((Date.now() - call.start) / 1000) : '0:00' }[call.state];
-  const people = call.room ? call.joined : call.ch.type === 'group' ? call.ch.members : [];
+  const all = call.room ? call.joined : call.ch.type === 'group' ? call.ch.members : [];
+  const people = all.slice(0, 11), extra = all.length - people.length;
   const grid = people.length > 0 && call.state === 'connected';
   el.innerHTML = `
     <div class="call-top">${icon('lock', 14)} End-to-end encrypted${call.room ? ` · whatsmore.app/call/${esc(call.room)}` : ''}</div>
     <div class="call-stage">
       ${call.screen ? `<video id="screen-vid" autoplay playsinline muted></video><div class="screen-label">${icon('screen', 16)} You are presenting · <span id="call-status">${label}</span></div>` :
-      grid ? `<div class="call-grid-wrap"><div class="call-title">${esc(title)} · <span id="call-status">${label}</span></div><div class="call-grid">${people.map((id) => `<div class="tile">${avatarHTML(contact(id), 84)}<span>${esc(contact(id).name)}</span><span class="tile-mic">${icon('mic', 14)}</span></div>`).join('')}</div></div>` :
+      grid ? `<div class="call-grid-wrap"><div class="call-title">${esc(title)} · <span id="call-status">${label}</span></div><div class="call-grid">${people.map((id) => `<div class="tile">${avatarHTML(contact(id), 84)}<span>${esc(contact(id).name)}</span><span class="tile-mic">${icon('mic', 14)}</span></div>`).join('')}${extra > 0 ? `<div class="tile more"><b>+${extra.toLocaleString()}</b><span>more in call</span></div>` : ''}</div></div>` :
       `<div class="call-hero">${call.room ? `<div class="action-ic big">${icon('link', 40)}</div>` : chatAvatar(call.ch, 128)}<h2>${esc(title)}</h2><div class="call-status" id="call-status">${label}</div><div class="call-kind">${call.video ? 'WHATSMORE video call' : 'WHATSMORE voice call'}</div></div>`}
       ${call.video ? `<div class="self-view ${call.blur ? 'blur' : ''}">${call.stream && !call.camOff ? '<video id="self-vid" autoplay playsinline muted></video>' : `<div class="self-off">${call.camErr ? 'Camera unavailable' : 'Camera off'}</div>`}<span>You${call.blur ? ' · blur on' : ''}</span></div>` : ''}
     </div>

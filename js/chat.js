@@ -59,7 +59,7 @@ function renderMain() {
 
 function chatSubText(ch) {
   if (ui.typing[ch.id]) return `<span class="typing-txt">${ch.type === 'group' ? esc(ui.typing[ch.id]) + ' is ' : ''}typing…</span>`;
-  if (ch.type === 'group') return esc([...ch.members.map(firstName), 'You'].join(', '));
+  if (ch.type === 'group') return ch.members.length > 6 ? `${(ch.members.length + 1).toLocaleString()} members · ${esc(namesSummary(ch.members, 3))}, You` : esc([...ch.members.map(firstName), 'You'].join(', '));
   const c = contact(ch.contactId);
   if (c.business) return c.business.category + ' · Business account';
   if (ch.request === 'pending') return 'Chat request sent · waiting for @' + esc(c.username);
