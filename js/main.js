@@ -5,7 +5,7 @@ const msgOf = (el) => curChat()?.messages.find((m) => m.id === el.dataset.mid);
 
 const A = {
   // navigation
-  tab(el) { ui.tab = el.dataset.tab; ui.page = null; renderRail(); renderSidebar(); },
+  tab(el) { ui.tab = el.dataset.tab; ui.page = null; renderRail(); renderSidebar(); onTabOpen(ui.tab); },
   page(el) { ui.page = el.dataset.page; renderSidebar(); },
   back() { ui.page = ui.page === 'newgroup' ? 'newchat' : null; renderSidebar(); },
   newchat() { ui.page = 'newchat'; ui.ncQuery = ''; ui.tab = 'chats'; renderRail(); renderSidebar(); setTimeout(() => $('#nc-search')?.focus(), 30); },
@@ -89,7 +89,7 @@ const A = {
   'pay-decline'(el) { const m = msgOf(el); if (m) { m.status = 'declined'; refreshMsg(curChat()); } },
   playvoice(el) { playVoice(el.dataset.mid); },
   viewmedia(el) { const m = msgOf(el); if (m) viewMedia(m); },
-  opendoc(el) { const m = msgOf(el); if (m?.url && ui.blobs.has(m.url)) window.open(m.url, '_blank', 'noopener'); else toast('This is a demo file — documents you send in this session can be opened.'); },
+  opendoc(el) { const m = msgOf(el); if (m) openDocViewer(m, curChat()); },
   going(el) { const m = msgOf(el); if (!m) return; m.going = m.going.includes('me') ? m.going.filter((x) => x !== 'me') : [...m.going, 'me']; refreshMsg(curChat()); },
   remind(el) { const m = msgOf(el); if (!m) return; m.remind = !m.remind; refreshMsg(curChat()); toast(m.remind ? `We'll remind you before “${m.title}”` : 'Reminder removed'); },
   'invoice-dl'(el) {
@@ -135,6 +135,7 @@ const A = {
   'call-end'() { endCall(); },
   'lb-close'() { $('#lightbox')?.remove(); },
 };
+Object.assign(A, XA);
 
 // ---------- event wiring
 document.addEventListener('click', (e) => {
@@ -197,6 +198,7 @@ document.addEventListener('keydown', (e) => {
   if (e.target.matches?.('[role=button][data-act]') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.target.click(); return; }
   if (e.key === 'Escape') {
     if ($('#menu')) return closeMenu();
+    if ($('#studio')) return;
     if ($('#lightbox')) return A['lb-close']();
     const modals = $$('.modal-backdrop');
     if (modals.length) return modals[modals.length - 1]._close();
@@ -225,6 +227,7 @@ window.addEventListener('resize', () => closeMenu());
 
 // ---------- start
 load();
+migrate();
 applyTheme();
 renderRail();
 renderSidebar();

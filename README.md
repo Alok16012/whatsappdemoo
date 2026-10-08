@@ -31,11 +31,26 @@ Everything you do is saved in your browser. Use **Settings → Reset demo data**
 | 9 | **Payments** 💳 | **+ → Payment** to send, request or split a bill. Your history is in Settings → Payments. |
 | 10 | **Business accounts** 💼 | *Sunrise Bakery*: ask *“What time do you open tomorrow?”* and the AI auto-replies. **+ → Catalogue → Order → Pay** gets you an invoice. |
 
+## New in v2 (client demo)
+
+| Feature | Try this |
+|---|---|
+| **Linked devices** 💻 | **Settings → Linked devices → Link a device**: a QR code that refreshes, a "link with code" option and a simulated scan (key exchange, encrypted history sync, security alert). Up to 4 devices, each with its own key, and you can rename or log out any of them. **Live sync:** open the demo in a second tab and messages appear in both. |
+| **Any file type** 📁 | **+ → Document · any file type** (pick several at once) or drag files onto a chat. PDF, Word, Excel, PPT, ZIP, audio, video, CAD, design, APK, code and more each get their own icon and a preview. **Files → ⬆** uploads to My Cloud. |
+| **Document correction** ✍️ | Open any document → **Edit & AI-correct**. **AI proofread** marks spelling, grammar, capitalisation and punctuation as tracked changes (accept or reject each one, or all at once). There's also a toolbar, a summary and a details panel. The corrected copy is sent as a new version. Try *WHATSMORE_PRD_v2.pdf* in *Project WHATSMORE*. |
+| **Digital signature** 🖊️ | *Ramesh Kumar* has sent a **signature request**: **Review & sign → Sign**. You can draw, type or upload a signature (and save it). The signed copy is sealed with SHA-256, and the **certificate** shows an audit trail and a **Verify integrity** button. **+ → Request signature** asks someone else to sign. |
+| **Home dashboard** 🏠 | Greeting, quick actions, SOS, and smart cards (unread messages, pending signature, scam alert, AI summary, wallet, family events, devices). |
+| **WHATSMORE AI** 🤖 | **AI** tab: translation into 18 languages, chat and document summaries, writing, a Telugu/Hindi tutor, interactive quizzes, an AI status creator, spending analysis, a scam check and voice input. |
+| **Services** 🌍 | Pay (scan, @username, recharge, bills), Business dashboard, Marketplace (seller AI: *"Is blue shirt available?" → "Book one L size"*), Citizen Services, Emergency SOS, Family Hub, Learn, News & Channels, My Area, Creator Studio, Voice Rooms, Digital Wellbeing, Admin Command Center. |
+| **Anti-scam AI** 🛡️ | *KYC Update Desk* chat: warnings that list the reasons, a confirmation before links open, and report & block. |
+| **More** | Voice → text transcripts, read aloud (text-to-voice), translating a message to any language, multiple profiles, AI memory controls, notification categories, chat import (from exported .txt). |
+
 ## Important: this is a prototype
 
 - **Other people are simulated.** Replies, typing indicators, votes and payments come from scripted bots. There is no backend and no real network messaging.
 - **Encryption is shown, not implemented.** A production build would use the Signal protocol for 1:1 chats and Sender Keys for groups, with independent audits.
 - **AI and translation are rule-based.** Production would use an on-device or privacy-preserving model.
+- **Digital signatures are a demo.** A legally binding launch would use Aadhaar eSign or a DSC under the IT Act, 2000.
 - **Payments are fake.** No money moves. A real launch needs licensed payment partners and must follow local regulations, such as RBI and NPCI rules for UPI.
 
 ## Project structure
@@ -43,6 +58,7 @@ Everything you do is saved in your browser. Use **Settings → Reset demo data**
 ```
 index.html          App shell
 css/styles.css      WhatsApp-style theme (light + dark), mobile layout
+css/more.css        Styles for the v2 features
 js/icons.js         SVG icon set
 js/data.js          Demo seed data (contacts, chats, stories, catalogue…)
 js/core.js          State, storage, helpers, menus, modals, toasts
@@ -52,5 +68,8 @@ js/chat.js          Conversation view, message rendering, composer, emoji panel
 js/messaging.js     Sending, simulated replies, business bot, payments, polls, voice, AI
 js/features.js      Chat actions, lock, forward, attachments, QR, call links, groups
 js/overlays.js      Info drawer, stories viewer, calls, media viewer
+js/docs.js          Any file type, document viewer, Document Studio (AI correction), digital signatures
+js/devices.js       Linked devices, multi-tab sync, anti-scam AI, voice AI, translation, data migration
+js/modules.js       Home, WHATSMORE AI, Services hub and all super-app modules, profiles, chat import
 js/main.js          Event wiring and startup
 ```

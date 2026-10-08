@@ -72,7 +72,7 @@ function scheduleReply(ch, trig) {
     if (c.blocked || ch.request === 'pending') return;
     const reply = c.business ? bizReply(ch, trig) : personReply(c, trig);
     if (reply) simulateIncoming(ch, c.id, reply, 900 + Math.random() * 1200);
-  } else if (!ch.readOnly && !ch.left && Math.random() < 0.7) {
+  } else if (!ch.readOnly && !ch.left && ch.members.length && Math.random() < 0.7) {
     const who = pick(ch.members);
     simulateIncoming(ch, who, personReply(contact(who), trig), 1500 + Math.random() * 2000);
   }

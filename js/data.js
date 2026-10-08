@@ -22,6 +22,7 @@ window.WM_SEED = function () {
         payments: 'WHATSMORE Pay · UPI · Cash on delivery', verified: true,
       },
     },
+    { id: 'c_kyc', name: 'KYC Update Desk', username: 'kyc.update.desk', about: 'Customer support', color: '#757575', isContact: false, online: false, lastSeen: now - 30 * m },
   ];
 
   const directory = [
@@ -98,6 +99,16 @@ window.WM_SEED = function () {
         M('c_ramesh', 'Hi! Are we still on for the review on Monday?', now - d - 2 * h),
         M('me', 'Yes, 10 AM works for me.', now - d - h, { status: 'read' }),
         { id: id(), from: 'c_ramesh', type: 'sticker', text: '👍', t: now - d - 50 * m, status: 'read', reactions: {} },
+        M('c_ramesh', 'Sharing the agreement for the new website project. Please review and sign 🙏', now - 2 * h),
+        { id: id(), from: 'c_ramesh', type: 'signreq', doc: { name: 'Freelance_Agreement_2026.docx', ext: 'docx', size: 42000 }, signers: ['me'], note: 'I have already signed. Your signature is needed to start.', status: 'pending', t: now - 2 * h + m, reactions: {} },
+      ],
+    },
+    {
+      id: 'ch_kyc', type: 'direct', contactId: 'c_kyc', unread: 2,
+      messages: [
+        enc(now - 40 * m),
+        M('c_kyc', 'Dear customer, your bank account will be blocked today. Update your KYC immediately at http://bit.ly/kyc-upd8 and share the OTP you receive to verify.', now - 40 * m),
+        M('c_kyc', 'Congratulations! You have won ₹25,00,000 in the lucky draw 🎉 Pay a ₹999 processing fee to claim your reward within 2 hours.', now - 38 * m),
       ],
     },
     {
@@ -206,11 +217,24 @@ window.WM_SEED = function () {
       { id: 'pay1', dir: 'out', amount: 18500, with: 'Ramesh Kumar', note: 'INV-2041 · Website work', t: jan(16, 16, 40) },
     ],
     wallet: 25000,
+    signature: null,
+    mod: {},
+    devices: [
+      { id: 'd_phone', kind: 'phone', name: 'iPhone 15 · WHATSMORE iOS', where: 'Hyderabad, IN', t: now - 20 * m, primary: true },
+      { id: 'd_web', kind: 'devices', name: 'This browser · WHATSMORE Web', where: 'Hyderabad, IN', t: now, current: true },
+      { id: 'd_win', kind: 'laptop', name: 'Windows PC · WHATSMORE Desktop', where: 'Bengaluru, IN', t: now - 6 * d },
+    ],
     scheduled: [],
     settings: {
       theme: 'light', enterSend: true, lockPin: null, plan: 'free',
       privacy: { lastSeen: 'contacts', photo: 'everyone', about: 'contacts', status: 'contacts', readReceipts: true, findByUsername: 'everyone', chatRequests: true },
       security: { twoStep: true, passkeys: false, biometric: false, deviceAlerts: true },
+      devices: { syncHistory: true, biometricLink: false },
+      aiMemory: true, aiPerms: { chats: true, files: true, location: false, contacts: true },
+      profile: 'personal',
+      notify: { messages: true, calls: true, payments: true, business: true, marketplace: false, community: true, ai: true, security: true, services: true },
+      wellbeing: { focus: false, quiet: true, quietFrom: '22:00', quietTo: '07:00', summary: true, reminder: true, limit: 120 },
+      emergency: { contacts: ['c_mom', 'c_siva'], message: 'I need help. This is an emergency. My current location is being shared with my emergency contacts.' },
       sessions: [
         { id: 's1', name: 'This browser', where: 'Hyderabad, IN', current: true, t: now },
         { id: 's2', name: 'iPhone 15 · WHATSMORE iOS', where: 'Hyderabad, IN', t: now - 20 * m },

@@ -12,11 +12,17 @@ function tabSettings() {
   <div class="side-scroll">
     <div class="profile-card" data-act="page" data-page="set-profile">${avatarHTML(S.me, 64)}<div class="grow"><div class="pc-name">${esc(S.me.name)}</div><div class="ci-sub">@${esc(S.me.username)} · ${esc(S.me.about)}</div></div><button class="icon-btn accent" data-act="myqr" title="My QR code" aria-label="My QR code">${icon('qr')}</button></div>
     ${settingRow('set-security', 'shield', 'Account & security', 'Two-step verification, passkeys, active sessions')}
+    ${settingRow('set-devices', 'devices', 'Linked devices', `${S.devices.filter((d) => !d.primary).length} of 4 linked · desktop, tablet & web`)}
+    ${settingRow('set-profiles', 'person', 'Profiles', 'Personal, Business, Creator, Family — one app')}
     ${settingRow('set-privacy', 'lock', 'Privacy', 'Last seen, username discovery, blocked contacts')}
+    ${settingRow('set-ai', 'sparkle', 'AI & memory', S.settings.aiMemory ? 'AI memory on · you control what AI can use' : 'AI memory off')}
+    ${settingRow('set-notify', 'megaphone', 'Notifications', 'Messages, calls, payments, business, security…')}
     ${settingRow('set-chats', 'chat', 'Chats', 'Theme, enter to send, translation')}
     ${settingRow('set-payments', 'rupee', 'Payments', money(S.wallet) + ' demo balance · transaction history')}
     ${settingRow('set-storage', 'cloud', 'Storage & plans', PLANS[S.settings.plan].name + ' plan')}
     ${settingRow('set-starred', 'star', 'Starred messages', '')}
+    <div class="list-row action" data-act="svc" data-mod="wellbeing"><span class="action-ic plain">${icon('timer', 22)}</span><div class="grow"><div class="ci-name">Digital wellbeing</div><div class="ci-sub">Screen time, focus mode, quiet hours</div></div>${icon('chevright', 20, 'muted')}</div>
+    <div class="list-row action" data-act="importchats"><span class="action-ic plain">${icon('importin', 22)}</span><div class="grow"><div class="ci-name">Import chats</div><div class="ci-sub">Bring your exported chat history from other apps</div></div>${icon('chevright', 20, 'muted')}</div>
     ${settingRow('set-about', 'info', 'About WHATSMORE', 'More Than Chat.')}
     <div class="list-row action danger" data-act="resetdemo"><span class="action-ic plain">${icon('logout', 22)}</span><div class="ci-name">Reset demo data</div></div>
   </div>`;
@@ -78,7 +84,7 @@ function settingsPage(p) {
       <div class="list-label">Chat settings</div>
       ${toggleRow('enterSend', 'Enter is send', 'Press Enter to send. Shift + Enter adds a new line.')}
       ${toggleRow('autoTranslate', 'Auto-translate chats', 'Show English translations under messages in other languages')}
-      ${selectRow('translateTo', 'Translate to', [['en', 'English'], ['te', 'Telugu (preview)'], ['hi', 'Hindi (preview)']])}
+      ${selectRow('translateTo', 'My language', LANG_LIST)}
       <div class="hint-box">${icon('translate', 16)}<span>Real-time translation lets everyone read the chat in their own language. Demo translations are pre-generated; production would use an on-device or encrypted translation model.</span></div>
     </div>`;
 
@@ -105,11 +111,11 @@ function settingsPage(p) {
 
     case 'set-about': return pageHead('About') + `<div class="side-scroll"><div class="about">
       <div class="logo-big">${logoSVG(72)}</div><h2>WHATSMORE</h2><p class="muted">More Than Chat. · Demo v1.0</p>
-      <ol class="feat-list">${['Private chat 💬', 'Voice & video calls 📞', 'Groups & communities 👥', 'Stories & status 📸', 'Username-based connection 👤', 'End-to-end encryption 🔐', 'AI assistant & translation 🤖', 'Cloud & file sharing ☁️', 'Payments 💳', 'Business accounts 💼'].map((f) => `<li>${f}</li>`).join('')}</ol>
+      <ol class="feat-list">${['Private chat 💬', 'Voice & video calls 📞', 'Groups & communities 👥', 'Stories & status 📸', 'Username-based connection 👤', 'End-to-end encryption 🔐', 'AI assistant & translation 🤖', 'Cloud & file sharing ☁️', 'Payments 💳', 'Business accounts 💼', 'Linked devices 💻', 'Any file type · document correction · digital signature ✍️', 'Super-app services: Pay, Market, Citizen, Learn, Family, SOS, News, My Area, Creator 🌍'].map((f) => `<li>${f}</li>`).join('')}</ol>
       <p class="muted small">CHAT + CALLS + GROUPS + STORIES + USERNAME + SECURITY + AI + CLOUD + PAYMENTS + BUSINESS</p>
     </div></div>`;
   }
-  return '';
+  return extraSettingsPage(p);
 }
 
 function logoSVG(size = 48) {

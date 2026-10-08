@@ -23,6 +23,8 @@ const PLANS = {
 };
 
 let S;
+// Extra action handlers registered by feature files (merged into A in main.js)
+const XA = {};
 const ui = {
   tab: 'chats', page: null, active: null, filter: 'all', search: '', ncQuery: '', ngName: '', ngQuery: '', ngPick: new Set(), memQuery: '', memLimit: 20,
   replyTo: null, editing: null, chatSearch: null, searchIdx: 0, drawer: null, unlocked: new Set(),
@@ -68,6 +70,24 @@ const callTime = (t) => (dayDiff(t) === 0 ? 'Today' : dayDiff(t) === 1 ? 'Yester
 const money = (n) => '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const fmtDur = (s) => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const fmtSize = (b) => (b < 1024 ? b + ' B' : b < 1048576 ? Math.round(b / 1024) + ' kB' : (b / 1048576).toFixed(1) + ' MB');
+// Every file type is supported — this only picks the icon label and colour
+const FILE_TYPES = [
+  [['pdf'], 'PDF', '#e5474b', 'pdf'], [['doc', 'docx', 'odt', 'rtf', 'pages'], 'DOC', '#2b6fd6', 'word'],
+  [['xls', 'xlsx', 'ods', 'numbers'], 'XLS', '#1d9b5f', 'sheet'], [['csv', 'tsv'], 'CSV', '#1d9b5f', 'text'],
+  [['ppt', 'pptx', 'odp', 'key'], 'PPT', '#d24726', 'slides'], [['txt', 'md', 'log', 'ini'], 'TXT', '#607d8b', 'text'],
+  [['zip', 'rar', '7z', 'tar', 'gz', 'bz2'], 'ZIP', '#8d6e63', 'archive'], [['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'opus'], 'AUDIO', '#ff9800', 'audio'],
+  [['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'], 'VIDEO', '#7b1fa2', 'video'], [['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'bmp', 'svg', 'tiff'], 'IMG', '#0288d1', 'image'],
+  [['psd', 'ai', 'fig', 'sketch', 'xd', 'indd', 'cdr'], 'DESIGN', '#5e35b1', 'design'], [['dwg', 'dxf', 'stl', 'step', 'obj'], 'CAD', '#455a64', 'cad'],
+  [['apk', 'exe', 'dmg', 'msi', 'ipa', 'deb'], 'APP', '#43a047', 'app'], [['epub', 'mobi'], 'BOOK', '#6d4c41', 'ebook'],
+  [['js', 'ts', 'py', 'java', 'kt', 'swift', 'html', 'css', 'json', 'xml', 'c', 'cpp', 'go', 'rb', 'php', 'sql', 'sh', 'yml', 'yaml'], 'CODE', '#37474f', 'text'],
+  [['vcf'], 'VCF', '#009688', 'text'], [['ics'], 'ICS', '#e91e63', 'text'],
+];
+function fileType(ext) {
+  ext = String(ext || '').toLowerCase();
+  const t = FILE_TYPES.find(([exts]) => exts.includes(ext));
+  return t ? { label: t[1], color: t[2], kind: t[3] } : { label: (ext || 'file').toUpperCase().slice(0, 4), color: '#8696a0', kind: 'other' };
+}
+const docIconHTML = (ext, cls = '') => { const t = fileType(ext); return `<div class="doc-icon ${cls}" style="background:${t.color}">${esc(t.label)}</div>`; };
 const initials = (name) => (name || '?').replace(/[^\p{L}\p{N}\s]/gu, '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
 function hash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
 function isJumbo(t) {
@@ -174,7 +194,8 @@ function preview(m) {
     case 'text': return m.text;
     case 'image': return '📷 ' + (m.caption || 'Photo');
     case 'video': return '🎥 ' + (m.caption || 'Video');
-    case 'doc': return '📄 ' + m.name;
+    case 'doc': return (m.signed ? '✍️ ' : '📄 ') + m.name;
+    case 'signreq': return '✍️ Signature request: ' + m.doc.name;
     case 'voice': return '🎤 Voice message (' + fmtDur(m.dur) + ')';
     case 'sticker': return m.text;
     case 'gif': return '🎞️ GIF';

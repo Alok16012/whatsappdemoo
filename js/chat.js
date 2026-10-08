@@ -27,8 +27,8 @@ function emptyMain() {
 
 function renderMain() {
   const ch = chatById(ui.active);
-  app.classList.toggle('chat-open', !!ch);
-  if (!ch) { main.innerHTML = emptyMain(); return; }
+  app.classList.toggle('chat-open', !!ch || !!ui.view);
+  if (!ch) { if (ui.view) renderView(); else main.innerHTML = emptyMain(); return; }
   const c = ch.type === 'direct' ? contact(ch.contactId) : null;
   main.innerHTML = `
     <header class="chat-head">
@@ -84,6 +84,7 @@ function renderBars() {
   if (ch.request === 'pending') html += `<div class="bar">${icon('person', 18)}<span>Chat request sent. They'll see your messages after accepting.</span></div>`;
   const sched = S.scheduled.filter((s) => s.chatId === ch.id);
   if (sched.length) html += `<div class="bar schbar" data-act="sched-view"><span class="accent">${icon('timer', 18)}</span><span class="grow">${sched.length} scheduled message${sched.length > 1 ? 's' : ''} · next ${dayLabel(Math.min(...sched.map((s) => s.at))).toLowerCase()} at ${fmtTime(Math.min(...sched.map((s) => s.at)))}</span><span class="link-btn">View</span></div>`;
+  html += extraBarsHTML(ch);
   el.innerHTML = html;
 }
 
@@ -148,14 +149,15 @@ function contentHTML(ch, m, q, jumbo) {
   switch (m.type) {
     case 'text':
       if (jumbo) return `<div class="jumbo">${esc(m.text)}</div>`;
-      return `<div class="text">${fmtText(m.text, q)}${m.tr && (ch.translate || S.settings.autoTranslate) ? `<span class="tr"><span class="tr-label">${icon('translate', 12)} Translated from ${LANGS[contact(m.from)?.lang] || 'another language'}</span>${fmtText(m.tr, q)}</span>` : ''}${spacer}</div>`;
+      return `${out ? '' : scamWarningHTML(m)}<div class="text">${fmtText(m.text, q)}${m.tr && (ch.translate || S.settings.autoTranslate) ? `<span class="tr"><span class="tr-label">${icon('translate', 12)} Translated from ${LANGS[contact(m.from)?.lang] || 'another language'}</span>${fmtText(m.tr, q)}</span>` : ''}${spacer}</div>`;
     case 'deleted': return `<div class="text deleted">${icon('block', 15)} ${out ? 'You deleted this message' : 'This message was deleted'}${spacer}</div>`;
     case 'sticker': return `<div class="jumbo sticker">${esc(m.text)}</div>`;
     case 'gif': return `<div class="gif" style="background:${m.gif.bg}"><span class="anim-${m.gif.anim}">${m.gif.e}</span><b>${esc(m.gif.label)}</b><span class="gif-tag">GIF</span></div>`;
     case 'image': return `<div class="media" data-act="viewmedia" data-mid="${m.id}">${m.src ? `<img src="${m.src}" alt="${esc(m.caption || 'Photo')}">` : `<div class="art" style="background:${m.art.bg}"><span>${m.art.emoji}</span></div>`}</div>${m.caption ? `<div class="text cap">${fmtText(m.caption, q)}${spacer}</div>` : ''}`;
     case 'video': return `<div class="media">${m.src && ui.blobs.has(m.src) ? `<video src="${m.src}" controls playsinline preload="metadata"></video>` : `<div class="art vid"><span>${icon('play', 48)}</span><small>Video available only in the session it was sent</small></div>`}</div>${m.caption ? `<div class="text cap">${fmtText(m.caption, q)}${spacer}</div>` : ''}`;
-    case 'doc': return `<div class="doc" data-act="opendoc" data-mid="${m.id}"><div class="doc-icon ext-${esc(m.ext)}">${esc((m.ext || 'file').toUpperCase().slice(0, 4))}</div><div class="doc-info"><div class="doc-name">${highlight(m.name, q)}</div><div class="doc-sub">${m.pages ? m.pages + ' page' + (m.pages > 1 ? 's' : '') + ' · ' : ''}${esc((m.ext || 'file').toUpperCase())} · ${fmtSize(m.size || 0)}</div></div></div>${m.caption ? `<div class="text cap">${fmtText(m.caption, q)}${spacer}</div>` : ''}`;
-    case 'voice': return voiceHTML(m);
+    case 'doc': return `<div class="doc" data-act="opendoc" data-mid="${m.id}">${docIconHTML(m.ext)}<div class="doc-info"><div class="doc-name">${highlight(m.name, q)}</div><div class="doc-sub">${m.pages ? m.pages + ' page' + (m.pages > 1 ? 's' : '') + ' · ' : ''}${esc((m.ext || 'file').toUpperCase())} · ${fmtSize(m.size || 0)}</div></div></div>${docBadgesHTML(m)}${m.caption ? `<div class="text cap">${fmtText(m.caption, q)}${spacer}</div>` : ''}`;
+    case 'signreq': return signReqHTML(ch, m);
+    case 'voice': return voiceHTML(m) + (m.transcript ? `<div class="text transcript"><span class="tr-label">${icon('sparkle', 12)} AI transcript</span>${esc(m.transcript)}${spacer}</div>` : '');
     case 'payment': return payHTML(ch, m);
     case 'poll': return pollHTML(m);
     case 'event': return `<div class="event-card"><div class="ev-ic">${icon('event', 22)}</div><div class="grow"><div class="ev-title">${esc(m.title)}</div><div class="ci-sub">${new Date(m.when).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}${m.place ? ' · ' + esc(m.place) : ''}</div><div class="ci-sub">${(m.going || []).length} going</div></div></div><div class="card-actions"><button class="link-btn" data-act="going" data-mid="${m.id}">${(m.going || []).includes('me') ? '✓ Going' : 'Going?'}</button><button class="link-btn" data-act="remind" data-mid="${m.id}">${m.remind ? '⏰ Reminder set' : 'Remind me'}</button></div>`;
@@ -268,7 +270,7 @@ function renderSmart() {
   if (!el || !ch) return;
   const ta = $('#input');
   const last = [...ch.messages].reverse().find((m) => m.type !== 'system');
-  if (!last || last.from === 'me' || last.type === 'deleted' || ui.editing || (ta && ta.value.trim()) || Date.now() - last.t > 3 * DAY) { el.innerHTML = ''; return; }
+  if (!last || last.from === 'me' || last.type === 'deleted' || (last.type === 'text' && scamCheck(last.text).length) || ui.editing || (ta && ta.value.trim()) || Date.now() - last.t > 3 * DAY) { el.innerHTML = ''; return; }
   el.innerHTML = `<span class="smart-label">${icon('sparkle', 14)}</span>` + smartReplies(last).map((s) => `<button data-act="smart" data-text="${esc(s)}">${esc(s)}</button>`).join('');
 }
 

@@ -167,6 +167,7 @@ function msgMenu(mid, anchor) {
     alive && { label: m.starred ? 'Unstar' : 'Star', icon: 'star', onClick: () => { m.starred = !m.starred; save(); renderMessages({ keep: true }); } },
     alive && m.tr && { label: ch.translate ? 'Hide translation' : 'Translate', icon: 'translate', onClick: () => A['translate-toggle']() },
     alive && out && m.type === 'text' && Date.now() - m.t < 15 * MIN && { label: 'Edit', icon: 'edit', onClick: () => { ui.editing = mid; ui.replyTo = null; const ta = $('#input'); ta.value = m.text; ta.dispatchEvent(new Event('input', { bubbles: true })); renderReplyBox(); focusInput(); } },
+    ...extraMsgItems(ch, m),
     { label: 'Delete', icon: 'delete', danger: true, onClick: () => deleteMsgModal(ch, m) },
   ], {
     alignLeft: !out,
@@ -212,7 +213,9 @@ function forwardModal(m) {
 function attachMenu(anchor) {
   const ch = chatById(ui.active);
   showMenu(anchor, [
-    { label: 'Document', icon: 'doc', color: '#7f66ff', onClick: sendDocs },
+    { label: 'Document · any file type', icon: 'doc', color: '#7f66ff', onClick: sendDocs },
+    { label: 'Create document', icon: 'edit', color: '#2b6fd6', onClick: () => openStudio({ ch, blank: true }) },
+    { label: 'Request signature', icon: 'draw', color: '#5e35b1', onClick: () => signRequestModal(ch) },
     { label: 'Photos & videos', icon: 'image', color: '#007bfc', onClick: sendMedia },
     { label: 'Payment', icon: 'rupee', color: '#00a884', onClick: () => payModal(ch) },
     { label: 'Poll', icon: 'poll', color: '#ffbc38', onClick: () => pollModal(ch) },
@@ -242,12 +245,7 @@ async function sendDocs() {
   const files = await pickFile('file-doc');
   const ch = chatById(ui.active);
   if (!files.length || !ch) return;
-  const f = files[0];
-  const url = URL.createObjectURL(f);
-  ui.blobs.add(url);
-  const ext = (f.name.split('.').pop() || 'file').toLowerCase();
-  const m = sendMsg(ch, { type: 'doc', name: f.name, size: f.size, ext, url });
-  scheduleReply(ch, m);
+  sendFiles(ch, files);
 }
 function shareContactModal(ch) {
   const people = S.contacts.filter((c) => c.isContact && c.id !== ch.contactId);

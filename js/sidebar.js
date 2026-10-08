@@ -1,14 +1,15 @@
 // Left navigation rail + sidebar (chats, new chat, status, calls, communities, files)
 'use strict';
-const TABS = [['chats', 'chat', 'Chats'], ['status', 'status', 'Status'], ['calls', 'call', 'Calls'], ['communities', 'groups', 'Communities'], ['files', 'cloud', 'Files']];
+// Mobile bottom bar follows the blueprint: Home | Chats | AI | Services | Profile. The rest live on Home.
+const TABS = [['home', 'home', 'Home'], ['chats', 'chat', 'Chats'], ['status', 'status', 'Status', 1], ['calls', 'call', 'Calls', 1], ['communities', 'groups', 'Communities', 1], ['files', 'cloud', 'Files', 1], ['ai', 'sparkle', 'AI'], ['services', 'apps', 'Services']];
 
 function renderRail() {
   const unread = S.chats.filter((c) => c.unread > 0 && !c.archived && !c.locked).length;
   const newStatus = S.statuses.some((s) => !s.viewed);
-  const btn = (id, ic, label) => `<button class="rail-btn ${ui.tab === id ? 'active' : ''}" data-act="tab" data-tab="${id}" title="${label}" aria-label="${label}">
+  const btn = (id, ic, label, desk) => `<button class="rail-btn ${ui.tab === id ? 'active' : ''} ${desk ? 'desk-only' : ''}" data-act="tab" data-tab="${id}" title="${label}" aria-label="${label}">
     <span class="rail-ic">${icon(ic)}</span>${id === 'chats' && unread ? `<span class="rail-badge">${unread}</span>` : ''}${id === 'status' && newStatus ? '<span class="rail-dot"></span>' : ''}<span class="rail-label">${label}</span></button>`;
   rail.innerHTML = `<div class="rail-top">${TABS.map((t) => btn(...t)).join('')}</div>
-    <div class="rail-bottom">${btn('settings', 'settings', 'Settings')}<button class="rail-me" data-act="tab" data-tab="settings" title="Profile" aria-label="Profile">${avatarHTML(S.me, 32)}</button></div>`;
+    <div class="rail-bottom">${btn('settings', 'settings', innerWidth <= 760 ? 'Profile' : 'Settings')}<button class="rail-me" data-act="tab" data-tab="settings" title="Profile" aria-label="Profile">${avatarHTML(S.me, 32)}</button></div>`;
 }
 
 function renderSidebar() {
@@ -20,7 +21,7 @@ function renderSidebar() {
   else if (p === 'locked') html = pageHead('Locked chats') + `<div class="hint-box">${icon('lock', 16)} These chats are hidden from your chat list and need your PIN to open.</div><div class="side-scroll" id="chat-list" data-mode="locked">${chatListHTML('locked')}</div>`;
   else if (p === 'starred') html = pageHead('Starred messages') + `<div class="side-scroll">${starredList(allStarred())}</div>`;
   else if (p && p.startsWith('set-')) html = settingsPage(p);
-  else html = ({ chats: tabChats, status: tabStatus, calls: tabCalls, communities: tabCommunities, files: tabFiles, settings: tabSettings })[ui.tab]();
+  else html = ({ home: tabHome, chats: tabChats, status: tabStatus, calls: tabCalls, communities: tabCommunities, files: tabFiles, ai: tabAI, services: tabServices, settings: tabSettings })[ui.tab]();
   sidebar.innerHTML = html;
 }
 function refreshSidebar() {
@@ -121,6 +122,8 @@ function chatsMenu(anchor) {
     { label: 'Starred messages', icon: 'star', onClick: () => { ui.page = 'starred'; renderSidebar(); } },
     { label: 'Archived chats', icon: 'archive', onClick: () => { ui.page = 'archived'; renderSidebar(); } },
     { label: 'Locked chats', icon: 'lock', onClick: () => A.openlocked() },
+    { label: 'Linked devices', icon: 'devices', onClick: () => { ui.tab = 'settings'; ui.page = 'set-devices'; renderRail(); renderSidebar(); } },
+    { label: 'Import chats', icon: 'importin', onClick: importChatModal },
     { label: 'My QR code', icon: 'qr', onClick: qrModal },
     { label: document.documentElement.dataset.theme === 'dark' ? 'Light mode' : 'Dark mode', icon: 'moon', onClick: () => { S.settings.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; applyTheme(); save(); } },
     { label: 'Settings', icon: 'settings', onClick: () => { ui.tab = 'settings'; ui.page = null; renderRail(); renderSidebar(); } },
@@ -322,7 +325,7 @@ function fileRow({ c, m, cat }) {
   else if (m.type === 'voice') thumb = `<div class="mini-ic">${icon('mic', 22)}</div>`;
   else if (m.type === 'video') thumb = `<div class="mini-ic">${icon('video', 22)}</div>`;
   else if (m.type === 'invoice') thumb = `<div class="mini-ic inv">${icon('receipt', 22)}</div>`;
-  else thumb = `<div class="doc-icon ext-${esc(m.ext)}">${esc((m.ext || 'file').toUpperCase())}</div>`;
+  else thumb = docIconHTML(m.ext);
   return `<div class="file-row" data-act="openmsg" data-chat="${c.id}" data-mid="${m.id}"><div class="file-thumb">${thumb}</div><div class="ci-body"><div class="ci-name">${esc(fileName(m))}</div><div class="ci-preview">${esc(senderName(m.from))} · ${esc(chatTitle(c))} · ${new Date(m.t).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}${m.size ? ' · ' + fmtSize(m.size) : ''}</div></div><span class="pill">${esc(FILECATS.find((x) => x[0] === cat)[1])}</span></div>`;
 }
 function storageUsed() {
@@ -330,7 +333,7 @@ function storageUsed() {
 }
 function tabFiles() {
   const used = storageUsed(), plan = PLANS[S.settings.plan];
-  return `<header class="side-head"><h2>Files</h2><div class="head-actions"><button class="pill clickable" data-act="page" data-page="set-storage">${plan.name} plan</button></div></header>
+  return `<header class="side-head"><h2>Files</h2><div class="head-actions"><button class="icon-btn" data-act="cloudupload" title="Upload any file" aria-label="Upload any file">${icon('upload')}</button><button class="pill clickable" data-act="page" data-page="set-storage">${plan.name} plan</button></div></header>
   <div class="side-tools">
     <div class="storage"><div class="storage-top"><span>${icon('cloud', 18)} WHATSMORE Cloud</span><span>${fmtSize(used)} of ${plan.quota}</span></div><div class="meter"><div style="width:${Math.max(2, (used / plan.bytes) * 100)}%"></div></div></div>
     ${searchBox('files-search', 'Ask: “invoice Ramesh sent in January”', ui.filesQuery)}
